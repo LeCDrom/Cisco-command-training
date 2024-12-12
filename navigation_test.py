@@ -4,6 +4,15 @@ import argparse
 import pickle
 
 
+
+# Config variables
+
+hostname = 'Equipment'
+
+config_file = {"name": {"hostname": hostname}}
+
+# =================================
+
 def open_file(name: str) -> str:
     data = ""
     with open(name, 'r') as f:
@@ -23,23 +32,13 @@ def enable(current: dict, modes: dict, usr_input: str, args: str):
         print(f"% Syntaxe invalide ({args})")
 
 def config_t(current: dict, modes: dict, usr_input: str, args: str):
-    """if usr_input.startswith("config t") or usr_input.startswith("configure terminal"):
+    if usr_input.startswith("config t") or usr_input.startswith("configure terminal"):
         if args.strip() == "":
             current["mode"] = "config"
             current["prompt"] = modes["config"]
             return current
         else:
-            print(f"% Syntaxe invalide ({args})")"""
-    mode = current["mode"]
-
-    for cmd, details in commands_list[mode].items():
-        match = re.match(f"^{cmd}(.*)", usr_input)
-        if match:
-            args = match.group(1).strip()
-            details["handler"](current, modes, usr_input, args)
-            return
-
-    print("% Commande invalide ou non disponible dans ce mode")
+            print(f"% Syntaxe invalide ({args})")
 
 def exit_mode(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
@@ -56,7 +55,7 @@ def exit_mode(current: dict, modes: dict, usr_input: str, args: str):
             current["prompt"] = modes["config"]
         return current
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"% Syntaxe invalide, arguments inattendus ({args})")
 
 def end(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
@@ -108,7 +107,10 @@ def interface(current: dict, modes: dict, usr_input: str, args: str):
         print(f"% Syntaxe invalide ({args})")
 
 def hostname(current: dict, modes: dict, usr_input: str, args: str):
-    pass
+    if args != "":
+        hostname = args
+    else:
+        print("% Argument attendu")
 
 def username(current: dict, modes: dict, usr_input: str, args: str):
     pass
@@ -171,21 +173,20 @@ def handle_commands(usr_input: str, current: dict, modes: dict) -> tuple:
     - modes : all modes and their prompts
     """
     mode = current["mode"]
-    prefix = usr_input.split()[0]
 
     for cmd, details in commands_list[mode].items():
+        
         if usr_input.startswith(cmd):
-            args = usr_input[len(cmd):].strip()
-            details["handler"](current, modes, usr_input, args)
+            try:
+                details["handler"]
+            except KeyError:
+                print("% Aucun fonction associée pour l'instant")
+            else:
+                args = usr_input[len(cmd):].strip()
+                details["handler"](current, modes, usr_input, args)
             return
 
-    # Check for partial matches
-    for cmd, details in commands_list[mode].items():
-        if cmd.startswith(prefix):
-            print(f"Did you mean '{cmd}'?")
-            return
-
-    print("% Commande invalide ou non disponible dans ce mode")
+    print("% Commande inconnue ou non disponible dans ce mode")
 
 
 # ===================== Commands list =====================
@@ -213,7 +214,7 @@ commands_list = {
         
         "config": {
             "interface": {"description": "Configurer les interfaces", "negate": False, "handler": interface},
-            "hostname": {"description": "Configurer nom de l'équipement", "negate": True, "nohandler": hostname},
+            "hostname": {"description": "Configurer nom de l'équipement", "negate": True, "handler": hostname},
             "username": {"description": "Configurer utilisateurs", "negate": True, "nohandler": username},
             "crypto" : {"description": "Créer les clés de chiffrement", "negate": False, "nohandler": crypto},
             "line": {"description": "Configurer lignes X à Y", "negate": False, "handler": line},
@@ -250,8 +251,6 @@ commands_list = {
 
 # ===================== ------------- =====================
 
-hostname = 'Equipment'
-
 
 nav = {
     "user": f"{hostname}> ",
@@ -267,4 +266,4 @@ current_mode = {"mode": "user", "prompt": nav["user"]}
 while True:
     user_input = input(current_mode["prompt"])
     
-    handle_commands(user_input, current_mode, nav)
+    handle_commands(user_input, current_mode, nav, config_file)
