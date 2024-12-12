@@ -5,11 +5,10 @@ import pickle
 
 
 
-# Config variables
+# Virtual config file
 
-hostname = 'Equipment'
-
-config_file = {"name": {"hostname": hostname}}
+global config_file
+config_file = {"hostname": "Equipement"}
 
 # =================================
 
@@ -21,13 +20,22 @@ def open_file(name: str) -> str:
     f.close()
     return data
 
+global prompt
+prompt = {
+    "user": f"{config_file["hostname"]}> ",
+    "privileged": f"{config_file["hostname"]}# ",
+    "config": f"{config_file["hostname"]}(config)# ",
+    "config if": f"{config_file["hostname"]}(config-if)# ",
+    "config line": f"{config_file["hostname"]}(config-line)# "
+}
+
 # =================== Available commands ===================
 
 def enable(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
         current["mode"] = "privileged"
         current["prompt"] = modes["privileged"]
-        return current
+        return
     else:
         print(f"% Syntaxe invalide ({args})")
 
@@ -36,7 +44,7 @@ def config_t(current: dict, modes: dict, usr_input: str, args: str):
         if args.strip() == "":
             current["mode"] = "config"
             current["prompt"] = modes["config"]
-            return current
+            return
         else:
             print(f"% Syntaxe invalide ({args})")
 
@@ -53,7 +61,7 @@ def exit_mode(current: dict, modes: dict, usr_input: str, args: str):
         elif current["mode"] in ("config if", "config line"):
             current["mode"] = "config"
             current["prompt"] = modes["config"]
-        return current
+        return
     else:
         print(f"% Syntaxe invalide, arguments inattendus ({args})")
 
@@ -61,7 +69,7 @@ def end(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
         current["mode"] = "privileged"
         current["prompt"] = modes["privileged"]
-        return current
+        return
     else:
         print(f"% Syntaxe invalide ({args})")
 
@@ -108,7 +116,14 @@ def interface(current: dict, modes: dict, usr_input: str, args: str):
 
 def hostname(current: dict, modes: dict, usr_input: str, args: str):
     if args != "":
-        hostname = args
+        config_file["hostname"] = args
+
+        modes["user"] = f"{config_file['hostname']}> "
+        modes["privileged"] = f"{config_file['hostname']}# "
+        modes["config"] = f"{config_file['hostname']}(config)# "
+        modes["config if"] = f"{config_file['hostname']}(config-if)# "
+        modes["config line"] = f"{config_file['hostname']}(config-line)# "
+
     else:
         print("% Argument attendu")
 
@@ -252,18 +267,13 @@ commands_list = {
 # ===================== ------------- =====================
 
 
-nav = {
-    "user": f"{hostname}> ",
-    "privileged": f"{hostname}# ",
-    "config": f"{hostname}(config)# ",
-    "config if": f"{hostname}(config-if)# ",
-    "config line": f"{hostname}(config-line)# "
-    }
-
-current_mode = {"mode": "user", "prompt": nav["user"]}
+current_mode = {"mode": "user", "prompt": prompt["user"]}
 
 
 while True:
     user_input = input(current_mode["prompt"])
     
-    handle_commands(user_input, current_mode, nav, config_file)
+    handle_commands(user_input, current_mode, prompt)
+    
+    print(current_mode)
+    print(config_file["hostname"])
