@@ -1,7 +1,4 @@
 import random
-import re
-import argparse
-import pickle
 from copy import deepcopy
 
 
@@ -25,14 +22,6 @@ startup_config = {
 
 # =================================
 
-def open_file(name: str) -> str:
-    data = ""
-    with open(name, 'r') as f:
-        for line in f:
-            data += line
-    f.close()
-    return data
-
 global prompt
 prompt = {
     "user": f"{running_config["hostname"]}> ",
@@ -41,6 +30,14 @@ prompt = {
     "config if": f"{running_config["hostname"]}(config-if)# ",
     "config line": f"{running_config["hostname"]}(config-line)# "
 }
+
+def open_file(name: str) -> str:
+    data = ""
+    with open(name, 'r') as f:
+        for line in f:
+            data += line
+    f.close()
+    return data
 
 def update_prompts(current: dict, modes: dict):
     global prompt
@@ -139,7 +136,7 @@ def reload_sw(current: dict, modes: dict, usr_input: str, args: str):
     else:
         print(f"\n% Syntaxe invalide: arguments inattendus ({args})\n")
 
-def help(current: dict, modes: dict, usr_input: str, args: str):
+def print_help(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
         print("\nCommandes EXEC :")
         for cmd, desc in commands_list[current["mode"]].items():
@@ -226,8 +223,32 @@ def transport(current: dict, modes: dict, usr_input: str, args: str):
 def exec_timeout(current: dict, modes: dict, usr_input: str, args: str):
     pass
 
-# =================== ------------------ ===================
+# =================== Procedural task generation ===================
 
+def random_hostname():
+    """Génère un hostname aléatoire"""
+    return f"{random.choice(["SW", "RT", "Info", "ICom"])}{random.randint(1, 30)}{random.choice(["-0etage", "-1etage", "-2etage"])}"
+
+def random_interface():
+    """Génère une interface aléatoire"""
+    interface = random.choice(["FastEthernet", "GigabitEthernet", "vlan"])
+    if interface == "FastEthernet":
+        return f"{interface}0/{random.randint(1, 24)}"
+    elif interface == "GigabitEthernet":
+        return f"{interface}0/{random.randint(1, 2)}"
+    else:
+        return f"{interface} {random.choice([random.randint(1, 40), random.randint(1, 150)])}"
+
+for _ in range(20):
+    print(random_interface())
+    print()
+    print(random_hostname())
+
+def new_task():
+    pass
+
+def check_results():
+    pass
 
 def handle_commands(usr_input: str, modes: dict, current: dict) -> tuple:
     """
@@ -253,15 +274,14 @@ def handle_commands(usr_input: str, modes: dict, current: dict) -> tuple:
     print("\n% Commande inconnue ou non disponible dans ce mode\n")
 
 
-# ===================== Commands list =====================
-
 global commands_list
 commands_list = {
         "user": {
             "enable": {"description": "Passer en mode privilégié ⤒", "negate": False, "handler": enable},
             "en": {"description": "Passer en mode privilégié ⤓", "negate": False, "handler": enable},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
-            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": print_help},
+            "::check": {"description": "Vérification des résultats", "negate": False, "handler": check_results},
         },
         
         "privileged": {
@@ -278,7 +298,8 @@ commands_list = {
             "traceroute": {"description": "Afficher parcours du paquet ICMP (hops)", "negate": False, "nohandler": traceroute},
             "no": {"description": "Inverser une commande", "negate": False, "handler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
-            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": print_help},
+            "::check": {"description": "Vérification des résultats", "negate": False, "handler": check_results},
         },
         
         "config": {
@@ -294,19 +315,21 @@ commands_list = {
             "no": {"description": "Inverser une commande", "negate": False, "nohandler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
             "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end},
-            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": print_help},
+            "::check": {"description": "Vérification des résultats", "negate": False, "handler": check_results},
         },
 
         "config if": {
             "duplex": {"description": "Définir le mode de transmission [ auto | half | full ]", "negate": False, "nohandler": duplex},
             "speed": {"description": "Définir la vitesse de transmission [ auto | 10 | 100 ]", "negate": False, "nohandler": speed},
             "description": {"description": "Établir la description de l'interface", "negate": True, "nohandler": descript},
-            "shutdown": {"description": "Éteindre / désactiver l'interface", "negate": True}, "nohandler": shutdown,
+            "shutdown": {"description": "Éteindre / désactiver l'interface", "negate": True, "nohandler": shutdown},
             "switchport": {"description": "Configurer le type de port", "negate": False, "nohandler": switchport},
             "no": {"description": "Inverser une commande", "negate": False, "handler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
             "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end},
-            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": print_help},
+            "::check": {"description": "Vérification des résultats", "negate": False, "handler": check_results},
         },
 
         "config line": {
@@ -317,11 +340,10 @@ commands_list = {
             "no": {"description": "Inverser une commande", "negate": False, "nohandler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
             "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end},
-            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": print_help},
+            "::check": {"description": "Vérification des résultats", "negate": False, "handler": check_results},
         }
 }
-
-# ===================== ------------- =====================
 
 
 current_mode = {"mode": "user", "prompt": prompt["user"]}
