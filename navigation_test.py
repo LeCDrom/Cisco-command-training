@@ -2,13 +2,26 @@ import random
 import re
 import argparse
 import pickle
-
+from copy import deepcopy
 
 
 # Virtual config file
 
-global config_file
-config_file = {"hostname": "Equipement"}
+global default_config
+global running_config
+global startup_config
+
+default_config = {
+        "hostname": "Switch",
+}
+
+running_config = {
+        "hostname": "SW1",
+}
+
+startup_config = {
+        "hostname": "Switch"
+}
 
 # =================================
 
@@ -22,12 +35,22 @@ def open_file(name: str) -> str:
 
 global prompt
 prompt = {
-    "user": f"{config_file["hostname"]}> ",
-    "privileged": f"{config_file["hostname"]}# ",
-    "config": f"{config_file["hostname"]}(config)# ",
-    "config if": f"{config_file["hostname"]}(config-if)# ",
-    "config line": f"{config_file["hostname"]}(config-line)# "
+    "user": f"{running_config["hostname"]}> ",
+    "privileged": f"{running_config["hostname"]}# ",
+    "config": f"{running_config["hostname"]}(config)# ",
+    "config if": f"{running_config["hostname"]}(config-if)# ",
+    "config line": f"{running_config["hostname"]}(config-line)# "
 }
+
+def update_prompts(current: dict, modes: dict):
+    global prompt
+    prompt["user"] = f"{running_config['hostname']}> "
+    prompt["privileged"] = f"{running_config['hostname']}# "
+    prompt["config"] = f"{running_config['hostname']}(config)# "
+    prompt["config if"] = f"{running_config['hostname']}(config-if)# "
+    prompt["config line"] = f"{running_config['hostname']}(config-line)# "
+
+    current["prompt"] = modes[current["mode"]]
 
 # =================== Available commands ===================
 
@@ -37,16 +60,26 @@ def enable(current: dict, modes: dict, usr_input: str, args: str):
         current["prompt"] = modes["privileged"]
         return
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"% Syntaxe invalide: arguments inattendus ({args})")
 
 def config_t(current: dict, modes: dict, usr_input: str, args: str):
-    if usr_input.startswith("config t") or usr_input.startswith("configure terminal"):
+    if usr_input.startswith("conf t") or usr_input.startswith("config t"):
         if args.strip() == "":
             current["mode"] = "config"
             current["prompt"] = modes["config"]
             return
+        
         else:
-            print(f"% Syntaxe invalide ({args})")
+            print(f"% Syntaxe invalide: arguments inattendus ({args})")
+    
+    elif usr_input.startswith("configure"):
+        if args.strip() == "terminal" or args.strip() == "t":
+            current["mode"] = "config"
+            current["prompt"] = modes["config"]
+            return
+        
+        else:
+            print(f"% Syntaxe invalide: arguments inattendus ({args})")
 
 def exit_mode(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
@@ -63,7 +96,7 @@ def exit_mode(current: dict, modes: dict, usr_input: str, args: str):
             current["prompt"] = modes["config"]
         return
     else:
-        print(f"% Syntaxe invalide, arguments inattendus ({args})")
+        print(f"% Syntaxe invalide: arguments inattendus ({args})")
 
 def end(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
@@ -71,31 +104,50 @@ def end(current: dict, modes: dict, usr_input: str, args: str):
         current["prompt"] = modes["privileged"]
         return
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"% Syntaxe invalide: arguments inattendus ({args})")
 
 def show(current: dict, modes: dict, usr_input: str, args: str):
     pass
 
 def write(current: dict, modes: dict, usr_input: str, args: str):
+    global startup_config, running_config
     if args == "":
-        pass
+        startup_config = deepcopy(running_config)
+        print("\n% Configuration sauvegardée dans la NVRAM\n")
+    elif args == "erase":
+        startup_config = deepcopy(default_config)
+        print("\n% Configuration effacée de la NVRAM\n")
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"\n% Syntaxe invalide: arguments inattendus ({args})\n")
 
 def copy(current: dict, modes: dict, usr_input: str, args: str):
-    pass
+    global startup_config, running_config
+    if args == "running-config startup-config":
+        write(current, modes, usr_input, "")
+    elif args == "startup-config running-config":
+        running_config = deepcopy(startup_config)
+        update_prompts(current, modes)
+        print("\n% Configuration restaurée depuis la NVRAM\n")
 
 def reload_sw(current: dict, modes: dict, usr_input: str, args: str):
+    global startup_config, running_config
     if args == "":
-        pass
+        running_config = deepcopy(startup_config)
+        update_prompts(current, modes)
+        print("\n######################### Switch redémarré #########################\n")
+    
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"\n% Syntaxe invalide: arguments inattendus ({args})\n")
 
-def mode_monitor(current: dict, modes: dict, usr_input: str, args: str):
+def help(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
-        pass
+        print("\nCommandes EXEC :")
+        for cmd, desc in commands_list[current["mode"]].items():
+            space = 15-len(cmd)
+            print(f"  {cmd}{" "*space}{desc["description"]}")
+        print()
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"\n% Syntaxe invalide: arguments inattendus ({args})\n")
 
 def ping(current: dict, modes: dict, usr_input: str, args: str):
     pass
@@ -110,22 +162,19 @@ def interface(current: dict, modes: dict, usr_input: str, args: str):
     if args == "":
         current["mode"] = "config if"
         current["prompt"] = modes["config if"]
-        return current
+        return
     else:
-        print(f"% Syntaxe invalide ({args})")
+        print(f"\n% Syntaxe invalide: arguments inattendus ({args})\n")
 
 def hostname(current: dict, modes: dict, usr_input: str, args: str):
+    global startup_config, running_config
     if args != "":
-        config_file["hostname"] = args
+        running_config["hostname"] = args
 
-        modes["user"] = f"{config_file['hostname']}> "
-        modes["privileged"] = f"{config_file['hostname']}# "
-        modes["config"] = f"{config_file['hostname']}(config)# "
-        modes["config if"] = f"{config_file['hostname']}(config-if)# "
-        modes["config line"] = f"{config_file['hostname']}(config-line)# "
+        update_prompts(current, modes)
 
     else:
-        print("% Argument attendu")
+        print("\n% Argument attendu\n")
 
 def username(current: dict, modes: dict, usr_input: str, args: str):
     pass
@@ -156,7 +205,7 @@ def duplex(current: dict, modes: dict, usr_input: str, args: str):
 def speed(current: dict, modes: dict, usr_input: str, args: str):
     pass
 
-def description(current: dict, modes: dict, usr_input: str, args: str):
+def descript(current: dict, modes: dict, usr_input: str, args: str):
     pass
 
 def shutdown(current: dict, modes: dict, usr_input: str, args: str):
@@ -180,7 +229,7 @@ def exec_timeout(current: dict, modes: dict, usr_input: str, args: str):
 # =================== ------------------ ===================
 
 
-def handle_commands(usr_input: str, current: dict, modes: dict) -> tuple:
+def handle_commands(usr_input: str, modes: dict, current: dict) -> tuple:
     """
     Handles the navigation between terminal modes
     - usr_input : user navigation command
@@ -195,13 +244,13 @@ def handle_commands(usr_input: str, current: dict, modes: dict) -> tuple:
             try:
                 details["handler"]
             except KeyError:
-                print("% Aucun fonction associée pour l'instant")
+                print("\n% Aucun fonction associée pour le moment\n")
             else:
                 args = usr_input[len(cmd):].strip()
                 details["handler"](current, modes, usr_input, args)
             return
 
-    print("% Commande inconnue ou non disponible dans ce mode")
+    print("\n% Commande inconnue ou non disponible dans ce mode\n")
 
 
 # ===================== Commands list =====================
@@ -209,22 +258,27 @@ def handle_commands(usr_input: str, current: dict, modes: dict) -> tuple:
 global commands_list
 commands_list = {
         "user": {
-            "enable": {"description": "Passer en mode privilégié", "negate": False, "handler": enable},
-            "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode}
+            "enable": {"description": "Passer en mode privilégié ⤒", "negate": False, "handler": enable},
+            "en": {"description": "Passer en mode privilégié ⤓", "negate": False, "handler": enable},
+            "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
         },
         
         "privileged": {
-            "configure terminal": {"description": "Passer en mode configuration terminal", "negate": False, "handler": config_t},
-            "config t": {"description": "Passer en mode privilégié", "negate": False, "handler": config_t},
-            "show": {"description": "Afficher diverses informations sur les interfaces", "negate": False, "nohandler": show},
-            "write": {"description": "Sauvegarder / supprimer configuration dans la NVRAM (mémoire non volatile)", "negate": False, "nohandler": write},
-            "copy": {"description": "Copier fichier vers destination", "negate": False, "nohandler": copy},
-            "reload": {"description": "Redémarrer l'équipement", "negate": False, "nohandler": reload_sw},
-            "terminal monitor": {"description": "Activer / désactiver les messages debug du terminal", "negate": True, "nohandler": mode_monitor},
+            "configure": {"description": "Passer en mode configuration terminal ⤒", "negate": False, "handler": config_t},
+            "config t": {"description": "Passer en mode configuration terminal", "negate": False, "handler": config_t},
+            "conf t": {"description": "Passer en mode configuration terminal ⤓", "negate": False, "handler": config_t},
+            "show": {"description": "Afficher diverses informations sur les interfaces ⤒", "negate": False, "nohandler": show},
+            "sh": {"description": "Afficher diverses informations sur les interfaces ⤓", "negate": False, "nohandler": show},
+            "write": {"description": "Sauvegarder / supprimer configuration dans la NVRAM (mémoire non volatile) ⤒", "negate": False, "handler": write},
+            "wr": {"description": "Sauvegarder / supprimer configuration dans la NVRAM (mémoire non volatile) ⤓", "negate": False, "handler": write},
+            "copy": {"description": "Copier fichier vers destination", "negate": False, "handler": copy},
+            "reload": {"description": "Redémarrer l'équipement", "negate": False, "handler": reload_sw},
             "ping": {"description": "Requête ping vers destination", "negate": False, "nohandler": ping},
             "traceroute": {"description": "Afficher parcours du paquet ICMP (hops)", "negate": False, "nohandler": traceroute},
             "no": {"description": "Inverser une commande", "negate": False, "handler": no},
-            "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode}
+            "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
         },
         
         "config": {
@@ -239,18 +293,20 @@ commands_list = {
             "spanning-tree": {"description": "Activer le spanning-tree (STP)", "negate": True, "nohandler": spanning_tree},
             "no": {"description": "Inverser une commande", "negate": False, "nohandler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
-            "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end}
+            "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end},
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
         },
 
         "config if": {
             "duplex": {"description": "Définir le mode de transmission [ auto | half | full ]", "negate": False, "nohandler": duplex},
             "speed": {"description": "Définir la vitesse de transmission [ auto | 10 | 100 ]", "negate": False, "nohandler": speed},
-            "description": {"description": "Établir la description de l'interface", "negate": True, "nohandler": description},
+            "description": {"description": "Établir la description de l'interface", "negate": True, "nohandler": descript},
             "shutdown": {"description": "Éteindre / désactiver l'interface", "negate": True}, "nohandler": shutdown,
             "switchport": {"description": "Configurer le type de port", "negate": False, "nohandler": switchport},
             "no": {"description": "Inverser une commande", "negate": False, "handler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
-            "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end}
+            "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end},
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
         },
 
         "config line": {
@@ -260,7 +316,8 @@ commands_list = {
             "exec-timeout": {"description": "Définir un timeout pour le mode privilégié *min* *sec*", "negate": True, "nohandler": exec_timeout},
             "no": {"description": "Inverser une commande", "negate": False, "nohandler": no},
             "exit": {"description": "Retourner au mode précédent", "negate": False, "handler": exit_mode},
-            "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end}
+            "end": {"description": "Retourner au mode privilégié", "negate": False, "handler": end},
+            "?": {"description": "Affiche les commandes disponibles dans le mode actuel", "negate": False, "handler": help}
         }
 }
 
@@ -273,7 +330,4 @@ current_mode = {"mode": "user", "prompt": prompt["user"]}
 while True:
     user_input = input(current_mode["prompt"])
     
-    handle_commands(user_input, current_mode, prompt)
-    
-    print(current_mode)
-    print(config_file["hostname"])
+    handle_commands(user_input, prompt, current_mode)
