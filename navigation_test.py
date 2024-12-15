@@ -9,15 +9,19 @@ global running_config
 global startup_config
 
 default_config = {
-        "hostname": "Switch",
+    "hostname": "Switch",
 }
 
 running_config = {
-        "hostname": "SW1",
+    "hostname": "SW1",
 }
 
 startup_config = {
-        "hostname": "Switch"
+    "hostname": "Switch"
+}
+
+expected_config = {
+    "hostname": "Switch"
 }
 
 # =================================
@@ -239,10 +243,71 @@ def random_interface():
     else:
         return f"{interface} {random.choice([random.randint(1, 40), random.randint(1, 150)])}"
 
-for _ in range(20):
-    print(random_interface())
-    print()
-    print(random_hostname())
+def random_ip():
+    """Génère un adresse IP aléatoire"""
+    return f"{random.choice([f"192.168.{random.randint(0, 254)}.{random.randint(0, 254)}", f"172.16.{random.randint(0, 254)}.{random.randint(1, 254)}", f"10.{random.randint(0, 254)}.{random.randint(0, 254)}.{random.randint(1, 254)}"])}"
+
+def random_mask_cidr(ip):
+    """Génère un masque aléatoire (notation CIDR)"""
+    if ip.startswith("192.168") or ip.startswith("172.16"):
+        return f"/{random.choice(["16", "24"])}"
+    else:
+        return f"/{random.choice(["8", "16", "24"])}"
+
+def random_mask(ip):
+    """Génère un masque aléatoire"""
+    masks = {
+        8: "255.0.0.0",
+        16: "255.255.0.0",
+        24: "255.255.255.0"
+    }
+    prefix = list(masks.keys())
+
+    if ip.startswith("192.168") or ip.startswith("172.16"):
+        return f"{masks[random.choice(prefix[1:])]}"
+    else:
+        return f"{masks[random.choice(prefix)]}"
+
+def random_speed(duplex):
+    """Génère une vitesse de transmission aléatoire"""
+    if duplex == "half-duplex":
+        return "10"
+    else:
+        return random.choice(["10", "100", "1000"])
+
+def random_duplex():
+    """Génère un mode de transmission aléatoire"""
+    return random.choice(["auto", "full-duplex", "half-duplex"])
+
+def random_description(interface):
+    """Génère une description aléatoire"""
+    if "vlan" in interface:
+        return random.choice(["Services logiciels", "Comptabilité", "Administratif", "Vente", "Supervision", "Administration Informatique"])
+    else:
+        return f"{random.choice(["Cœur", "Distribution", "Accès"])}-{random.randint(1, 10)}"
+
+def random_username():
+    """Génère un nom d'utilisateur aléatoire"""
+    return random.choice(["bob", "alice", "eddy-malou", "admin", "linus"])
+
+def random_password():
+    """Génère un mot de passe aléatoire"""
+    return random.choice["pouzin", "cisco", "savant", "L3:MDp:h@rD:5", "swiche"]
+
+def random_lines():
+    """Génère des lignes aléatoires"""
+    item = random.choice(["console", "vty"])
+    if item == "console":
+        return "console 0"
+    else:
+        line1 = random.randint(0, 3)
+        line2 = random.randint(1, 6)
+        while line2 < line1 and line2 != line1:
+            line2 = random.randint(1, 6)
+        return f"vty {line1} {line2}"
+
+for _ in range(30):
+    print(random_lines())
 
 def new_task():
     pass

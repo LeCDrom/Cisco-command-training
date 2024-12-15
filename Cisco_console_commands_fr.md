@@ -106,14 +106,15 @@
 • HostName(config-if)# exit
 • HostName(config)# exit
 • HostName# show vlan
-• HostName# no vlan *10*
+• HostName# no vlan *10* => désactiver vlan
+• HostName# no interface vlan *10* => supprimer vlan
 ```
 
 ### Attribuer port d'accès au Vlan :
 
 ```text
 • HostName(config)# interface *FastEthernet0/1*
-• HostName(config-if)# switchport mode access [OPTIONNEL]
+• HostName(config-if)# switchport mode access => définit comme port accès
 • HostName(config-if)# switchport access vlan *10*
 • HostName(config-if)# no shutdown
 ```
@@ -122,7 +123,9 @@
 
 ```text
 • HostName(config)# interface FastEthernet0/1
-• HostName(config-if)# switchport trunk allowed vlan *10* add
+• HostName(config-if)# switchport mode trunk => définit comme port taggué
+• HostName(config-if)# switchport trunk allowed vlan *10* add => ajoute le vlan 10 aux vlan autorisés
+• HostName(config-if)# switchport trunk allowed vlan 20,30,40 => autorise les vlan 20, 30 et 40
 • HostName(config-if)# no shutdown
 ```
 
@@ -140,10 +143,10 @@
 ### Activer / désactiver Spanning-Tree (STP) :
 
 ```text
-• HostName# spanning-tree => activer
-• HostName# spanning-tree mode [ stp | rstp | mst ]
-• HostName# show spanning-tree
-• HostName# no spanning-tree => désactiver
+• HostName(config)# spanning-tree => activer
+• HostName(config)# spanning-tree mode [ pvst | rapid-pvst ]
+• HostName(config)# show spanning-tree
+• HostName(config)# no spanning-tree => désactiver
 ```
 
 ### Trucs à savoir
@@ -154,6 +157,8 @@
 - Généralement préfixe "no" pour inverser la commande (no shutdown)
 - Commande "ping" ou "traceroute" seule pour entrer dans commande détaillée
 - Port Fa : Fast Ethernet ; Port Gi : Gigabit Ethernet
+- int : raccourci interface
+- wr : raccourci write
 ```
 
 ### Commandes en vrac :
@@ -161,11 +166,10 @@
 ```text
 • HostName# show running-config
 • HostName# show startup-config
-• HostName# show ip interface brief => afficher toutes les interfaces (+ Vlan)
+• HostName# show ip interface { brief } => afficher toutes les interfaces
 • HostName# show ip route
 • HostName# show interfaces [SUPER LONG]
 • HostName# show interface *Fa0/1*
-• HostName# show ip interface
 • HostName# show mac address-table
 • HostName# show vlan
 • HostName# show version
